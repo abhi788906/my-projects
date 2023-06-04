@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+## RDS Inputs 
+  DBInstanceIdentifier:
+    Type: String
+    Description: The identifier of the RDS instance to monitor
+  
+  CPUUtilizationThreshold:
+    Type: Number
+    Description: CPU utilization threshold for the alarm (percentage)
+  
+  ConnectionThreshold:
+    Type: Number
+    Description: Database connection threshold for the alarm
+  
+  FreeStorageThreshold:
+    Type: Number
+    Description: Free storage space threshold for the alarm (in GB)
+  
+  DiskIOThreshold:
+    Type: Number
+    Description: Disk I/O threshold for the alarm
+  
+  ReadLatencyThreshold:
+    Type: Number
+    Description: Read latency threshold for the alarm (in milliseconds)
+  
+  WriteLatencyThreshold:
+    Type: Number
+    Description: Write latency threshold for the alarm (in milliseconds)
+
+  EmailAddress:
+    Type: String
+    Description: "Email address to receive alerts"
+
+Resources:
+  RDSCPUUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: RDSCPUUtilizationAlarm
+      AlarmDescription: Alarm for high CPU utilization
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref CPUUtilizationThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+  RDSConnectionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: RDSConnectionAlarm
+      AlarmDescription: Alarm for high database connections
+      Namespace: AWS/RDS
+      MetricName: DatabaseConnections
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: SampleCount
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref ConnectionThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+  RDSFreeStorageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: RDSFreeStorageAlarm
+      AlarmDescription: Alarm for low free storage space
+      Namespace: AWS/RDS
+      MetricName: FreeStorageSpace
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref FreeStorageThreshold
+      ComparisonOperator: LessThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+  RDSDiskIOAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: RDSDiskIOAlarm
+      AlarmDescription: Alarm for high disk I/O
+      Namespace: AWS/RDS
+      MetricName: DiskIOBytes
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref DiskIOThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+  RDSReadLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: RDSReadLatencyAlarm
+      AlarmDescription: Alarm for high read latency
+      Namespace: AWS/RDS
+      MetricName: ReadLatency
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref ReadLatencyThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+  RDSWriteLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: RDSWriteLatencyAlarm
+      AlarmDescription: Alarm for high write latency
+      Namespace: AWS/RDS
+      MetricName: WriteLatency
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref WriteLatencyThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: "AlertsTopic"
+      Subscription:
+        - Endpoint: !Ref EmailAddress
+          Protocol: "email"
+
+Outputs:
+  SNSTopic:
+    Value: !Ref SNSTopic
+    Description: "SNS Topic ARN"

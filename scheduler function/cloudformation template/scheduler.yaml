@@ -1,0 +1,162 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  StartExpression:
+    Type: String
+    Description: 'Cron expression for the scheduled job to start EC2'
+    Default: 'cron(0 9 ? * MON-FRI *)' # Default cron expression to run at morning 9 am
+  StopExpression:
+    Type: String
+    Description: 'Cron expression for the scheduled job to stop EC2'
+    Default: 'cron(0 21 ? * MON-FRI *)' # Default cron expression to run at evening 9 pm
+  FunctionName:
+    Type: String
+    Description: 'Scheduler Lambda Name'
+    Default: 'SchedulerFunction'
+
+Resources:
+  SchedulerFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: !Ref FunctionName
+      Runtime: python3.8
+      Handler: index.lambda_handler
+      Role: !GetAtt SchedulerExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import time 
+          class EC2InstanceScheduler:
+              def __init__(self):
+                  self.ec2_client = boto3.client('ec2')
+              
+              def start_instance(self, instance_id):
+                  try:
+                      self.ec2_client.start_instances(InstanceIds=[instance_id])
+                      print(f"Started instance {instance_id}")
+                      time.sleep(1)
+                  except Exception as e:
+                      print(f"Error starting instance {instance_id}: {str(e)}")
+              
+              def stop_instance(self, instance_id):
+                  try:
+                      self.ec2_client.stop_instances(InstanceIds=[instance_id])
+                      print(f"Stopped instance {instance_id}")
+                      time.sleep(1)
+                  except Exception as e:
+                      print(f"Error stopping instance {instance_id}: {str(e)}")
+              
+              def update_scheduler_tag(self, instance_id, scheduler_tag_value):
+                  try:
+                      self.ec2_client.create_tags(Resources=[instance_id], Tags=[{'Key': 'scheduler', 'Value': scheduler_tag_value}])
+                      print(f"Updated scheduler tag to '{scheduler_tag_value}' for instance {instance_id}")
+                  except Exception as e:
+                      print(f"Error updating scheduler tag for instance {instance_id}: {str(e)}")
+
+          class InstanceManager(EC2InstanceScheduler):
+              def __init__(self):
+                  super().__init__()
+
+              def manage_instances(self):
+                  try:
+                      # Get all EC2 instances with the 'scheduler' tag set to 'start'
+                      response = self.ec2_client.describe_instances(Filters=[{'Name': 'tag:scheduler', 'Values': ['start']}])
+              
+                      for reservation in response['Reservations']:
+                          for instance in reservation['Instances']:
+                              instance_id = instance['InstanceId']
+                              current_state = instance['State']['Name']
+                      
+                              if current_state == 'stopped':
+                                  self.start_instance(instance_id)
+                                  self.update_scheduler_tag(instance_id, 'stop')
+                          
+                              elif current_state == 'running':
+                                  self.update_scheduler_tag(instance_id, 'stop')
+                                  
+                      # Get all EC2 instances with the 'scheduler' tag set to 'stop'
+                      response = self.ec2_client.describe_instances(Filters=[{'Name': 'tag:scheduler', 'Values': ['stop']}])
+              
+                      for reservation in response['Reservations']:
+                          for instance in reservation['Instances']:
+                              instance_id = instance['InstanceId']
+                              current_state = instance['State']['Name']
+                      
+                              if current_state == 'running':
+                                  self.stop_instance(instance_id)
+                                  self.update_scheduler_tag(instance_id, 'start')
+                  except Exception as e:
+                      print(f"Error managing instances: {str(e)}")
+
+          def lambda_handler(event, context):
+              instance_manager = InstanceManager()
+              instance_manager.manage_instances()
+
+  SchedulerExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: SchedulerExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: LambdaExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:*'
+                Resource: '*'
+
+  StartEventRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Name: EC2StartScheduler
+      ScheduleExpression: !Ref StartExpression
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt SchedulerFunction.Arn
+          Id: StartEC2Function
+  
+  StopEventRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Name: EC2StopScheduler
+      ScheduleExpression: !Ref StopExpression
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt SchedulerFunction.Arn
+          Id: StopEC2Function
+
+  PermissionForEventsToInvokeStartLambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !Ref SchedulerFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt StartEventRule.Arn
+
+  PermissionForEventsToInvokeStopLambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !Ref SchedulerFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt StopEventRule.Arn
+
+Outputs:
+  LambdaFunctionName:
+    Description: Name of the created Lambda function
+    Value: !Ref SchedulerFunction
+  
+  CloudWatchEventRuleNameToStart:
+    Description: Name of the created CloudWatch Events rule
+    Value: !Ref StartEventRule
+  
+  CloudWatchEventRuleNameToStop:
+    Description: Name of the created CloudWatch Events rule
+    Value: !Ref StopEventRule

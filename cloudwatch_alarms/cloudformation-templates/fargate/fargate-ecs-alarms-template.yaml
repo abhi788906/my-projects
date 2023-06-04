@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ## FARGATE Inputs
+  ECSClusterName:
+    Type: String
+    Description: Name of the ECS cluster
+    Default: my-cluster
+
+  ECSServiceName:
+    Type: String
+    Description: Name of the ECS service
+    Default: my-service
+  
+  EmailAddress:
+    Type: String
+    Description: "Email address to receive alerts"
+
+Resources:
+  # Alarms for AWS Fargate 
+  FargateCPUUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: FargateCPUUtilizationAlarm
+      AlarmDescription: High CPU Utilization
+      Namespace: AWS/ECS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref ECSClusterName
+        - Name: ServiceName
+          Value: !Ref ECSServiceName
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  FargateMemoryUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: FargateMemoryUtilizationAlarm
+      AlarmDescription: High Memory Utilization
+      Namespace: AWS/ECS
+      MetricName: MemoryUtilization
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref ECSClusterName
+        - Name: ServiceName
+          Value: !Ref ECSServiceName
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  FargateNetworkUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: FargateNetworkUtilizationAlarm
+      AlarmDescription: High Network Utilization
+      Namespace: AWS/ECS
+      MetricName: NetworkPacketsIn
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref ECSClusterName
+        - Name: ServiceName
+          Value: !Ref ECSServiceName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 1000
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  FargateDiskUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: FargateDiskUtilizationAlarm
+      AlarmDescription: High Disk Utilization
+      Namespace: AWS/ECS
+      MetricName: DiskBytesUsed
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref ECSClusterName
+        - Name: ServiceName
+          Value: !Ref ECSServiceName
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+# SNS Topic Configuration
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: "AlertsTopic"
+      Subscription:
+        - Endpoint: !Ref EmailAddress
+          Protocol: "email"
+
+Outputs:
+  SNSTopic:
+    Value: !Ref SNSTopic
+    Description: "SNS Topic ARN"

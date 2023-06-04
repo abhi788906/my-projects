@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  RepositoryName:
+    Type: String
+    Description: Name of the ECR repository
+  EmailAddress:
+    Type: String
+    Description: "Email address to receive alerts"
+
+Resources:
+  ECRAlarms:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: "ECR Image Count Alarm"
+      AlarmDescription: "Alarm for critical image count in ECR"
+      Namespace: "AWS/ECR"
+      MetricName: "ImageCount"
+      Statistic: "Average"
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: "LessThanOrEqualToThreshold"
+      AlarmActions:
+        - !Ref SNSTopic
+  
+  ImageScanningFindingsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ImageScanningFindingsAlarm
+      AlarmDescription: High Image Scanning Findings
+      Namespace: AWS/ECR
+      MetricName: ImageScanFindingsCount
+      Dimensions:
+        - Name: RepositoryName
+          Value: !Ref RepositoryName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  AccessControlAuthenticationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: AccessControlAuthenticationAlarm
+      AlarmDescription: Failed Authentication or Unauthorized Access
+      Namespace: AWS/ECR
+      MetricName: AuthorizationFailures
+      Dimensions:
+        - Name: RepositoryName
+          Value: !Ref RepositoryName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  ImagePushPullAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ImagePushPullAlarm
+      AlarmDescription: High Image Pushes or Pulls
+      Namespace: AWS/ECR
+      MetricName: ImagePushes
+      Dimensions:
+        - Name: RepositoryName
+          Value: !Ref RepositoryName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  EncryptionStatusAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: EncryptionStatusAlarm
+      AlarmDescription: Encryption Status Change
+      Namespace: AWS/ECR
+      MetricName: EncryptionStatus
+      Dimensions:
+        - Name: RepositoryName
+          Value: !Ref RepositoryName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 0
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  RepositoryActivityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: RepositoryActivityAlarm
+      AlarmDescription: Repository Activity Change
+      Namespace: AWS/ECR
+      MetricName: RepositoryEvents
+      Dimensions:
+        - Name: RepositoryName
+          Value: !Ref RepositoryName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  ComplianceMonitoringAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ComplianceMonitoringAlarm
+      AlarmDescription: Compliance Violations
+      Namespace: AWS/ECR
+      MetricName: PolicyConformanceStatus
+      Dimensions:
+        - Name: RepositoryName
+          Value: !Ref RepositoryName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  AuditLoggingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: AuditLoggingAlarm
+      AlarmDescription: Unauthorized or Suspicious API Activity
+      Namespace: AWS/ECR
+      MetricName: CloudTrailEvents
+      Dimensions:
+        - Name: RepositoryName
+          Value: !Ref RepositoryName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  ContainerImageIntegrityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ContainerImageIntegrityAlarm
+      AlarmDescription: Image Tampering Attempt
+      Namespace: AWS/ECR
+      MetricName: ImageTampering
+      Dimensions:
+        - Name: RepositoryName
+          Value: !Ref RepositoryName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+  
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: "AlertsTopic"
+      Subscription:
+        - Endpoint: !Ref EmailAddress
+          Protocol: "email"
+
+Outputs:
+  SNSTopic:
+    Value: !Ref SNSTopic
+    Description: "SNS Topic ARN"
