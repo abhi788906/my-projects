@@ -8,8 +8,12 @@ from botocore.exceptions import ClientError
 key_age = os.environ['KEY_AGE']
 sender_email = os.environ['ADMIN_EMAIL']
 admin_user = os.environ['ADMIN_USERNAME']
+admin_group = os.environ['ADMIN_GROUP']
 account_id = os.environ['AWS_ACCOUNT_ID']
 role_arn = os.environ['ROLE_ARN']
+expire_key_age = os.environ['DELETE_KEY']
+tag_key = os.environ['TAG_KEY']
+tag_value = os.environ['TAG_VALUE']
 
 def create_access_key(iam, user_name):
     try:
@@ -23,7 +27,7 @@ def create_access_key(iam, user_name):
 def disable_access_key(iam, user_name, access_key_id):
     try:
         iam.update_access_key(UserName=user_name, AccessKeyId=access_key_id, Status='Inactive')
-        iam.tag_user(UserName=user_name, Tags=[{'Key': 'DeleteOn', 'Value': (datetime.now(timezone.utc) + timedelta(days=10)).strftime("%Y-%m-%d")}])
+        iam.tag_user(UserName=user_name, Tags=[{'Key': 'DeleteOn', 'Value': (datetime.now(timezone.utc) + timedelta(days=int(expire_key_age))).strftime("%Y-%m-%d")}])
     except ClientError as e:
         print(f"Failed to disable access key {access_key_id} for user {user_name}: {e}")
 
@@ -75,6 +79,14 @@ def secret_store(user_name, access_key, secret_key):
                     "Effect": "Allow",
                     "Principal": {
                         "AWS": f"arn:aws:iam::{account_id}:user/{admin_user}"
+                    },
+                    "Action": "secretsmanager:GetSecretValue",
+                    "Resource": f"{secret_response['ARN']}"
+                },
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": f"arn:aws:iam::{account_id}:group/{admin_group}"
                     },
                     "Action": "secretsmanager:GetSecretValue",
                     "Resource": f"{secret_response['ARN']}"
@@ -153,13 +165,25 @@ def process_user(iam, user):
         expired_keys = [key for key in access_keys if key['CreateDate'].replace(tzinfo=timezone.utc) < cutoff_date]
         active_keys = [key for key in access_keys if key['Status'] == 'Active']
         disabled_keys = [key for key in access_keys if key['Status'] == 'Inactive']
-
         # Case 1: User has 2 access keys
         if num_keys == 2:
             if len(active_keys) == 2:
                 notify_user(user_name, "User already has two active keys. Moving to the next user")
                 return
-
+            elif len(active_keys) == 1 and len(disabled_keys) == 1:
+                if disabled_keys[0]['AccessKeyId'] == expired_keys[0]['AccessKeyId']:
+                    print("Checking whether the key tag has breached date or not...")
+                elif active_keys[0]['AccessKeyId'] == expired_keys[0]['AccessKeyId']:
+                    print(user_name,"Active is expired, found disabled key as well. Deleting the Old key and Rotating the expired key.")
+                    delete_access_key(iam, disabled_keys['AccessKeyId'])
+                    disable_access_key(iam, user_name, active_keys['AccessKeyId'])
+                    new_key = create_access_key(iam, user_name)
+                    if new_key:
+                        disable_access_key(iam, user_name, expired_keys[0]['AccessKeyId'])
+                        secret_store(user_name, new_key['AccessKeyId'], new_key['SecretAccessKey'])
+                        notify_user(user_name, f"Your access key has been rotated. \n Please find the information below:\n Access Key: {new_key['AccessKeyId']} \n Secret Access Key: {new_key['SecretAccessKey']}.\n Please update your credentials.")
+                        return
+                    
             # Delete disabled keys
             for key in disabled_keys:
                 tags_response = iam.list_user_tags(UserName=user_name)
@@ -176,7 +200,7 @@ def process_user(iam, user):
                 try:
                     delete_date = datetime.strptime(key['Tags'][0]['Value'], "%Y-%m-%d")
                 except (KeyError, ValueError):
-                    delete_date = now + timedelta(days=30)
+                    delete_date = now + timedelta(days=int(expire_key_age))
 
                 if delete_date <= now:
                     delete_access_key(iam, key['AccessKeyId'])
@@ -213,13 +237,13 @@ def process_user(iam, user):
                     try:
                         delete_date = datetime.strptime(key['Tags'][0]['Value'], "%Y-%m-%d")
                     except (KeyError, ValueError):
-                        delete_date = now + timedelta(days=30)
+                        delete_date = now + timedelta(days=int(expire_key_age))
 
                     if delete_date <= now:
                         delete_access_key(iam, key['AccessKeyId'])
                     else:
                         notify_user(user_name, f"The access key {key['AccessKeyId']} is already disabled. This key will be deleted after {delete_date.strftime('%Y-%m-%d')}.")
-                        iam.tag_user(UserName=user_name, Tags=[{'Key': 'DeleteOn', 'Value': (datetime.now(timezone.utc) + timedelta(days=10)).strftime("%Y-%m-%d")}])
+                        iam.tag_user(UserName=user_name, Tags=[{'Key': 'DeleteOn', 'Value': (datetime.now(timezone.utc) + timedelta(days=int(expire_key_age))).strftime("%Y-%m-%d")}])
                 notify_user(user_name, f"Access key {key['AccessKeyId']} is already in a disabled state.")
             else:
                 if expired_keys:
@@ -230,7 +254,7 @@ def process_user(iam, user):
                         secret_store(user_name, new_key['AccessKeyId'], new_key['SecretAccessKey'])
                         notify_user(user_name, f"Your access key has been rotated. \n Please find the information below:\n Access Key: {new_key['AccessKeyId']} \n Secret Access Key: {new_key['SecretAccessKey']}.\n Please update your credentials.")
                 else:
-                    notify_user(user_name, "User has only one active key, and it is not expired. Moving to the next user")
+                    print(user_name, "User has only one active key, and it is not expired. Moving to the next user")
 
         # Case 3: User has 0 access keys
         else:
@@ -242,11 +266,23 @@ def lambda_handler(event, context):
 
     # Fetch the list of IAM users
     response = iam.list_users()
-
-    # Process each user
+               
     for user in response['Users']:
-        process_user(iam, user)
-
+        # Check if the user has the specified tag
+        user_tags = iam.list_user_tags(UserName=user['UserName'])['Tags']
+        skip_user = "false"
+        for tag in user_tags:
+            if tag['Key'] == tag_key and tag['Value'] == tag_value:
+                # Update the block accordingly
+                skip_user = "true"
+                break
+            continue
+        
+        if skip_user == "false":
+            print("The user",user['UserName'],"has no tag attached. Checking the user.") 
+            process_user(iam, user)
+        else:
+            print("The user",user['UserName']," has ",tag_key,"=",tag_value,". Ignoring the user")
     # Return success status (optional)
     return {
         'statusCode': 200,

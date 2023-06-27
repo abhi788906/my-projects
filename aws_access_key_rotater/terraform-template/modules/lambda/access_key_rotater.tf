@@ -7,13 +7,21 @@ data "archive_file" "lambda" {
   output_path = "${path.module}/key_rotater.zip"
 }
 
+# VPC Configuration
+
 # Lambda Configuration
 resource "aws_lambda_function" "access_key_rotater" {
   function_name = "${var.function_name}"  # Replace with your desired function name
   role          = aws_iam_role.key_rotater_role.arn
-  handler       = "index.handler"            # Replace with the appropriate handler for your code
+  handler       = "key_rotater.lambda_handler"            # Replace with the appropriate handler for your code
   runtime       = "python3.8"               # Replace with the desired runtime
   timeout  = 300
+
+  vpc_config {
+  subnet_ids = [var.subnet_id]
+  security_group_ids = [aws_security_group.lambda_sg.id]
+}
+
   environment {
     variables = {
       KEY_AGE = "${var.max_key_age}"
@@ -21,7 +29,10 @@ resource "aws_lambda_function" "access_key_rotater" {
       ADMIN_USERNAME = "${var.admin_username}"
       AWS_ACCOUNT_ID = "${data.aws_caller_identity.current.account_id}"
       ROLE_ARN = "${aws_iam_role.key_rotater_role.arn}"
-      
+      DELETE_KEY = "${var.expire_key_age}"
+      ADMIN_GROUP  = "${var.admin_group_name}"
+      TAG_KEY = "${var.tag_key}"
+      TAG_VALUE = "${var.tag_value}"
     }
   }
 
@@ -62,7 +73,9 @@ resource "aws_iam_policy" "access_key_rotater_role_policy" {
 			"Action": [
 				"iam:*",
 				"secretsmanager:*",
-                "ses:*"
+                "ses:*",
+                "logs:*",
+                "ec2:*"
 			],
 			"Resource": "*"
 		}
@@ -71,3 +84,25 @@ resource "aws_iam_policy" "access_key_rotater_role_policy" {
   EOF
 }
 
+resource "aws_security_group" "lambda_sg" {
+  name        = "lambda-security-group"
+  description = "Security group for Lambda function"
+
+  vpc_id = var.vpc_id
+
+  # Inbound rule to allow communication within the VPC
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # Outbound rule to allow communication through the NAT gateway
+  egress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
+}
