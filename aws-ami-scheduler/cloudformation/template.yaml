@@ -1,0 +1,226 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation Template to deploy a Lambda function with CloudWatch Events rule
+
+Parameters:
+  LambdaFunctionName:
+    Type: String
+    Description: Name of the Lambda function
+    Default: MyLambdaFunction
+
+  SKIPAMIVALUE:
+    Type: String
+    Description: Mention the tag which will help you want to retain and skip
+    Default: 'do-not-remove'
+
+  DELETIONDAY:
+    Type: Number
+    Description: Number of days after which it will delete the AMI
+    Default: 180
+
+  BACKUPAMI:
+    Type: String
+    Description: Mention the backup tag value for ami backup
+    Default: 'AWS Backup solution'
+
+  ScheduleExpression:
+    Type: String
+    Description: The schedule expression for the CloudWatch Events rule to trigger the Lambda function
+    Default: 'cron(0 0 * * ? *)' # Run daily at midnight UTC
+  
+  limit:
+    Type: Number
+    Description: AMI scan limit
+    Default: 400
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: LambdaExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:*
+                  - autoscaling:*
+                Resource: '*'
+
+  MyLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Runtime: python3.8
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          """
+          Automated AMI and Snapshot Deletion based on Retention period
+          """
+
+          import os
+          import boto3
+          import logging
+          from datetime import datetime, timedelta
+          from dateutil import parser
+          LOGGER = logging.getLogger()
+          LOGGER.setLevel(logging.INFO)
+
+          #ENV VARS
+          region = os.environ['AWS_REGION']
+          retention = int(os.getenv('retention_period', 180))
+          preserved_tags = os.getenv('preserved_ami_tag', ['do-not-remove', 'DO-NOT-REMOVE'])
+          AWS_backup_tags = os.getenv('AWS_backup_tags', ['AWS Backup solution'])
+          limit = int(os.getenv('limit', 400))
+
+          # boto3 clients
+          ec2 = boto3.client(
+              service_name='ec2',
+              region_name=region)
+
+          #Functions
+          def lambda_handler(event, context):
+              """
+              Lambda Handler or main function
+              """
+              oldest_allowed = (datetime.utcnow() - timedelta(days=retention)).strftime('%Y-%m-%d %H:%M:%S')
+              LOGGER.info(f'Removing AMIs older than {str(oldest_allowed)}')
+              deleted_count = 0
+              images = ec2.describe_images(Owners=['self'])['Images']
+              if images is not None:
+                  for image in images:
+                      if deleted_count >= limit:
+                          break
+                      preserve_found = False
+                      if 'Tags' in image:
+                          for tag in image['Tags']:
+                              if tag['Value'] in preserved_tags or tag['Value'] in AWS_backup_tags:
+                                  preserve_found = True
+                                  break
+                          if preserve_found:
+                              continue
+                      imagestatus = image_status(image, oldest_allowed)
+                      if imagestatus:
+                          deleted_count += 1
+              LOGGER.info(f"{deleted_count} image(s) was/were removed along with its snapshot volume")
+              
+              check_old_snapshots(oldest_allowed, images)
+
+          def image_status(image, retention_date):
+              if exceeds_retention(image, retention_date):
+                  if remove_image(image):
+                      return True
+              return False
+
+          def exceeds_retention(images, retention_date):
+              create_ts = images['CreationDate']
+              date = parser.parse(create_ts).strftime('%Y-%m-%d')
+              return date < retention_date
+
+          def remove_image(image):
+              """
+              Remove the AMI and associated snapshot
+              """
+              snaps = []
+              storogaevolumes=image['BlockDeviceMappings']
+              if not isImageinUse(image['ImageId']):
+                  for storage in storogaevolumes:
+                      if "dev" in storage['DeviceName']:
+                          snaps.append(storage['Ebs']['SnapshotId'])
+                      LOGGER.info(f"AMI with id {image['ImageId']} is using ephemeral volume, hence it will be auto deleted")
+                  LOGGER.info(f"AMI with id: {image['ImageId']} and name: {image['ImageLocation']} is being deleted")
+                  ec2.deregister_image(ImageId=image['ImageId'])
+                  for snapshot in snaps:
+                      LOGGER.info(f"snapshot with id: {snapshot} is being deleted")
+                      ec2.delete_snapshot(SnapshotId=snapshot)
+                  return True
+              LOGGER.info(f"Image Id: {image['ImageId']} is in use with running EC2 instance")
+              return False
+
+          def check_old_snapshots(oldest_allowed, images):
+              """
+              Check for independent snapshots older than retention period
+              """
+              snapshots = ec2.describe_snapshots(OwnerIds=['self'])['Snapshots']
+              deleted_count = 0
+              for snapshot in snapshots:
+                  if deleted_count >= limit:
+                      break
+                  snapshot_id = snapshot['SnapshotId']
+                  snapshot_time = snapshot['StartTime'].strftime('%Y-%m-%d %H:%M:%S')
+                  if snapshot_time < oldest_allowed:
+                      # Check if the snapshot is associated with any AMI
+                      ami_associated = any(image['BlockDeviceMappings'][0]['Ebs']['SnapshotId'] == snapshot_id for image in images)
+                      if not ami_associated:
+                          LOGGER.info(f"Snapshot with id {snapshot_id} is older than retention period and has no associated AMI. Deleting...")
+                          # Reusing the logic from the remove_image function to delete the snapshot
+                          snaps = [snapshot_id]
+                          LOGGER.info(f"Snapshot with id: {snapshot_id} is being deleted")
+                          ec2.delete_snapshot(SnapshotId=snapshot_id)
+                          deleted_count += 1
+
+              LOGGER.info(f"{deleted_count} independent snapshot(s) were removed.")
+                  
+
+          def isImageinUse(image):
+              """
+              This function will determine if image is in use with EC2 
+              instances (checking with EC2 instances means even checking with ASG and Launch templates)
+              """
+              ec2_dictobjects = ec2.describe_instances()
+              for reservation in ec2_dictobjects["Reservations"]:
+                  for instance in reservation["Instances"]:
+                      if instance["ImageId"] == image:
+                          return True
+              return False
+
+
+      Environment:
+        Variables:
+          retention_period: !Ref DELETIONDAY
+          preserved_ami_tag: !Ref SKIPAMIVALUE
+          AWS_backup_tags: !Ref BACKUPAMI
+          limit: !Ref limit
+
+      Timeout: 300
+
+  ScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${LambdaFunctionName}-ScheduleRule"
+      ScheduleExpression: !Ref ScheduleExpression
+      Targets:
+        - Arn: !GetAtt MyLambdaFunction.Arn
+          Id: !Sub "${LambdaFunctionName}-Target"
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt MyLambdaFunction.Arn
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ScheduleRule.Arn
+
+Outputs:
+  LambdaFunctionArn:
+    Description: ARN of the Lambda function
+    Value: !GetAtt MyLambdaFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaFunctionArn"
+
+  ScheduleRuleArn:
+    Description: ARN of the CloudWatch Events rule
+    Value: !GetAtt ScheduleRule.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ScheduleRuleArn"
