@@ -1,5 +1,5 @@
 module "contacts" {
-  source                   = "./modules/contacts"
+  source                   = "./modules/incident_manager"
   contacts                 = var.contacts
   schedule                 = var.schedule
   oncall_schedule_contacts = var.oncall_schedule_contacts
