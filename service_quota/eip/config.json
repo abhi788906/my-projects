@@ -1,0 +1,52 @@
+{
+  "project_name": "elastic-ip-monitor",
+  "environment": "production",
+  "aws_region": "ap-south-1",
+  
+  "common_tags": {
+    "Owner": "DevOps Team",
+    "CostCenter": "Infrastructure",
+    "Application": "Elastic IP Monitoring",
+    "Backup": "true",
+    "Monitoring": "true"
+  },
+  
+  "cloudtrail": {
+    "include_global_events": true,
+    "is_multi_region": false,
+    "enable_logging": true,
+    "enable_cloudwatch_logs": false,
+    "log_retention_days": 90,
+    "cloudwatch_log_retention_days": 14
+  },
+  
+  "lambda": {
+    "function_zip_path": "../lambda_function.zip",
+    "layer_zip_path": "../lambda-layer/build/elastic-ip-monitor-layer.zip",
+    "runtime": ["python3.9"],
+    "timeout": 300,
+    "memory_size": 256,
+    "log_level": "INFO",
+    "quota_code": "L-0263D0A3",
+    "service_code": "ec2",
+    "usage_threshold": 50.0,
+    "quota_increment": 1,
+    "enable_quota_increase": true,
+    "sns_topic_arn": null,
+    "cloudwatch_log_retention_days": 14
+  },
+  
+  "monitoring": {
+    "enable_cloudwatch_dashboard": true,
+    "enable_alarms": true,
+    "lambda_error_threshold": 5,
+    "lambda_duration_threshold": 250000
+  },
+  
+  "security": {
+    "enable_encryption": true,
+    "enable_public_access_block": true,
+    "enable_versioning": true,
+    "enable_lifecycle_policies": true
+  }
+}

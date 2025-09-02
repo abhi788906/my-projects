@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Serverless solution for monitoring Elastic IP creation and managing service quotas'
+
+Parameters:
+  LambdaFunctionName:
+    Type: String
+    Default: 'elastic-ip-quota-monitor'
+    Description: 'Name for the Lambda function'
+  
+  CloudTrailName:
+    Type: String
+    Default: 'elastic-ip-monitoring-trail'
+    Description: 'Name for the CloudTrail'
+
+Resources:
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${LambdaFunctionName}-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ElasticIPQuotaMonitoringPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeAddresses
+                  - service-quotas:GetServiceQuota
+                  - service-quotas:RequestServiceQuotaIncrease
+                  - support:*
+                Resource: '*'
+
+  # Lambda Function
+  ElasticIPQuotaMonitorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Runtime: python3.9
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {'statusCode': 200, 'body': 'Function deployed successfully'}
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+
+  # CloudTrail
+  ElasticIPMonitoringTrail:
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      TrailName: !Ref CloudTrailName
+      S3BucketName: !Ref CloudTrailBucket
+      S3KeyPrefix: 'elastic-ip-monitoring/'
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: false
+      EventSelectors:
+        - ReadWriteType: WriteOnly
+          DataResources:
+            - Type: 'AWS::EC2::Address'
+              Values:
+                - 'arn:aws:ec2:*:*:elastic-ip/*'
+
+  # S3 Bucket for CloudTrail logs
+  CloudTrailBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::AccountId}-elastic-ip-monitoring-trail-${AWS::Region}'
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLogs
+            Status: Enabled
+            ExpirationInDays: 90
+
+  # S3 Bucket Policy for CloudTrail
+  CloudTrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CloudTrailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !Sub '${CloudTrailBucket}'
+          - Sid: CloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${CloudTrailBucket}/elastic-ip-monitoring/*'
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+  # EventBridge Rule to trigger Lambda on CloudTrail events
+  ElasticIPAllocationRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${LambdaFunctionName}-elastic-ip-allocation-rule'
+      Description: 'Triggers Lambda function when Elastic IP is allocated'
+      EventPattern:
+        source:
+          - 'aws.cloudtrail'
+        detail-type:
+          - 'AWS API Call via CloudTrail'
+        detail:
+          eventSource:
+            - 'ec2.amazonaws.com'
+          eventName:
+            - 'AllocateAddress'
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ElasticIPQuotaMonitorFunction.Arn
+          Id: !Sub '${LambdaFunctionName}-target'
+
+  # Permission for EventBridge to invoke Lambda
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ElasticIPQuotaMonitorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ElasticIPAllocationRule.Arn
+
+  # CloudWatch Log Group for Lambda
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${LambdaFunctionName}'
+      RetentionInDays: 14
+
+Outputs:
+  LambdaFunctionArn:
+    Description: 'ARN of the Lambda function'
+    Value: !GetAtt ElasticIPQuotaMonitorFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunctionArn'
+  
+  CloudTrailName:
+    Description: 'Name of the CloudTrail'
+    Value: !Ref ElasticIPMonitoringTrail
+    Export:
+      Name: !Sub '${AWS::StackName}-CloudTrailName'
+  
+  S3BucketName:
+    Description: 'S3 bucket for CloudTrail logs'
+    Value: !Ref CloudTrailBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-S3BucketName'
