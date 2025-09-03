@@ -71,7 +71,7 @@
     "encryption": {
       "enabled": true,
       "algorithm": "aws:kms",
-      "kms_key_id": "arn:aws:kms:ap-south-1:222189578909:key/177a7f7a-b204-4da5-b1d6-8c623fc2879e"
+      "kms_key_id": "arn:aws:kms:ap-south-1:x:key/177a7f7a-b204-4da5-b1d6-8c623fc2879e"
     },
     "lifecycle": {
       "enabled": true,
@@ -94,7 +94,7 @@
       "POWERTOOLS_METRICS_NAMESPACE": "VideoUpload"
     },
     "layers": [
-      "arn:aws:lambda:ap-south-1:770693421928:layer:AWSLambdaPowertoolsTypeScript:1"
+      "arn:aws:lambda:ap-south-1:xxxxx:layer:AWSLambdaPowertoolsTypeScript:1"
     ]
   },
   "api_gateway": {
