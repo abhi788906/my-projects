@@ -1,0 +1,18 @@
+[
+  {
+    "PartNumber": 1,
+    "ETag": "\"e1b667df2e59ef21456a23389d608481\""
+  },
+  {
+    "PartNumber": 2,
+    "ETag": "\"9422742cd91ff7480ba1a449d9950802\""
+  },
+  {
+    "PartNumber": 3,
+    "ETag": "\"de4fbb35d931f8807b213bb5746a5cd1\""
+  },
+  {
+    "PartNumber": 4,
+    "ETag": "\"0c92365640510c22eb4fa66975c3cf4f\""
+  }
+]

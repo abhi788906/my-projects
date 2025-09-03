@@ -1,0 +1,45 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  MyBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      SamResourceId: MyBucket
+  MyLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-sam-cli-managed-default-samclisourcebucket-kqnka9zxh8lo/axiosUpload/65005b0b1840d5c5e1cf8e30153490a2
+      Handler: index.handler
+      Runtime: nodejs16.x
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: MyBucket
+      Policies:
+      - S3CrudPolicy:
+          BucketName:
+            Ref: MyBucket
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /upload
+            Method: post
+            RestApiId:
+              Ref: ServerlessRestApi
+    Metadata:
+      SamResourceId: MyLambda
+  ServerlessRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+    Metadata:
+      SamResourceId: ServerlessRestApi
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL for Prod stage
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod
+  BucketName:
+    Description: S3 bucket name
+    Value:
+      Ref: MyBucket

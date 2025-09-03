@@ -1,0 +1,659 @@
+# Video Upload Platform - .gitignore
+# Comprehensive Git ignore file to prevent sensitive data and unnecessary files
+
+# =============================================================================
+# SECURITY & SENSITIVE FILES
+# =============================================================================
+
+# AWS Credentials and Configuration
+.aws/
+aws-credentials.json
+aws-config.json
+~/.aws/credentials
+~/.aws/config
+
+# Environment Variables and Secrets
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+*.env
+secrets.json
+secrets.yaml
+secrets.yml
+
+# API Keys and Tokens
+api-keys.json
+tokens.json
+access-tokens.txt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Database Credentials
+database.json
+db-credentials.json
+connection-strings.txt
+
+# =============================================================================
+# TERRAFORM FILES
+# =============================================================================
+
+# Terraform State and Lock Files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfstate.lock.info
+*.tfstate.lock
+.terraform.lock.hcl
+
+# Terraform Directory
+.terraform/
+.terraform.lock.hcl
+
+# Terraform Plan Files
+*.tfplan
+*.tfplan.json
+tfplan
+tfplan.json
+
+# Terraform Variables (if they contain secrets)
+terraform.tfvars
+*.auto.tfvars
+*.auto.tfvars.json
+
+# =============================================================================
+# NODE.JS & JAVASCRIPT
+# =============================================================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.test
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# =============================================================================
+# PYTHON
+# =============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# =============================================================================
+# OPERATING SYSTEM FILES
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# EDITOR & IDE FILES
+# =============================================================================
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+.history/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Atom
+.atom/
+
+# Brackets
+.brackets.json
+
+# =============================================================================
+# BUILD & DEPLOYMENT FILES
+# =============================================================================
+
+# Build outputs
+build/
+dist/
+out/
+target/
+bin/
+obj/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.test
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+.tmp/
+.temp/
+
+# =============================================================================
+# TESTING & QUALITY ASSURANCE
+# =============================================================================
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Test results
+test-results/
+test-output/
+junit.xml
+test-report.xml
+
+# Code quality tools
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# =============================================================================
+# CLOUD & DEPLOYMENT
+# =============================================================================
+
+# AWS
+.aws/
+aws-credentials.json
+aws-config.json
+
+# Google Cloud
+.gcloud/
+service-account-key.json
+
+# Azure
+.azure/
+azure-credentials.json
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Kubernetes
+*.kubeconfig
+kubeconfig
+
+# =============================================================================
+# PROJECT-SPECIFIC FILES
+# =============================================================================
+
+# Video upload specific
+uploads/
+video-cache/
+temp-uploads/
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mkv
+
+# Lambda deployment packages
+*.zip
+lambda-packages/
+deployment-packages/
+
+# Local configuration overrides
+local-config.json
+local-settings.json
+user-config.json
+config.json
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Archive files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.zip
+*.rar
+*.7z
+
+# =============================================================================
+# MONITORING & LOGS
+# =============================================================================
+
+# Application logs
+app.log
+application.log
+error.log
+access.log
+
+# System logs
+system.log
+syslog
+
+# CloudWatch logs
+cloudwatch-logs/
+aws-logs/
+
+# X-Ray traces
+xray-traces/
+traces/
+
+# =============================================================================
+# CACHE & TEMPORARY FILES
+# =============================================================================
+
+# Cache directories
+.cache/
+cache/
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Lock files
+*.lock
+.lock
+
+# =============================================================================
+# DOCUMENTATION & ASSETS
+# =============================================================================
+
+# Generated documentation
+docs/build/
+docs/_build/
+site/
+
+# Asset files (if not needed in repo)
+assets/
+images/
+videos/
+audio/
+
+# =============================================================================
+# BACKUP & ARCHIVE FILES
+# =============================================================================
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Archive files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.zip
+*.rar
+*.7z
+
+# =============================================================================
+# FINAL NOTES
+# =============================================================================
+
+# Always be cautious with these patterns
+# If you need to include any of these files, use git add -f filename
+# or create a .gitignore.local file for your specific needs
+
+# Local overrides (if needed)
+.gitignore.local
+.gitignore.user
+
+# Keep this file
+!.gitignore
+
+# Example files (keep these for reference)
+!example/
+!*.example
+!*.example.js
+!*.example.json
+!*.example.yaml
+!*.example.yml
+
+# Exclude actual client implementation files
+client.js
+client.js.map
+client.min.js
+
+# Exclude sensitive configuration files
+frontend/js/config.js
+
+# Exclude response and test files
+response.json
+response-complete.json
+response-final-test.json
+response-multipart.json
+response-real-video.json
+test_multipart_upload.js
+response-real-video-fixed.json
+
+# Keep template files
+!frontend/js/config.template.js

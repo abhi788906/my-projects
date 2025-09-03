@@ -1,0 +1,165 @@
+{
+  "project": {
+    "name": "video-upload-platform",
+    "environment": "production",
+    "region": "ap-south-1",
+    "tags": {
+      "Project": "VideoUpload",
+      "Environment": "Production",
+      "ManagedBy": "Terraform",
+      "CostCenter": "VideoProcessing",
+      "DataClassification": "Confidential"
+    }
+  },
+  "networking": {
+    "vpc_cidr": "10.0.0.0/16",
+    "public_subnets": ["10.0.1.0/24", "10.0.2.0/24"],
+    "private_subnets": ["10.0.3.0/24", "10.0.4.0/24"],
+    "availability_zones": ["ap-south-1a", "ap-south-1b"],
+    "flow_logs": {
+      "enabled": true,
+      "retention_days": 30
+    }
+  },
+  "cognito": {
+    "password_policy": {
+      "minimum_length": 8,
+      "require_uppercase": true,
+      "require_lowercase": true,
+      "require_numbers": true,
+      "require_symbols": true,
+      "temporary_password_validity_days": 7
+    },
+    "mfa_configuration": {
+      "enabled": true
+    },
+    "advanced_security": {
+      "enabled": true
+    },
+    "lambda_triggers": {
+      "enabled": false,
+      "pre_authentication_arn": "",
+      "post_authentication_arn": "",
+      "pre_token_generation_arn": ""
+    },
+    "callback_urls": [
+      "http://localhost:3000/callback",
+      "https://localhost:3000/callback"
+    ],
+    "logout_urls": [
+      "http://localhost:3000/logout",
+      "https://localhost:3000/logout"
+    ],
+    "token_validity": {
+      "access_token_hours": 1,
+      "id_token_hours": 1,
+      "refresh_token_days": 30
+    },
+    "allow_unauthenticated_identities": false,
+    "supported_login_providers": {}
+  },
+  "s3": {
+    "bucket_name": "video-upload-storage-2025-09-03",
+    "max_file_size_mb": 1024,
+    "allowed_video_formats": ["mp4", "avi", "mov", "mkv", "wmv", "flv", "webm", "m4v"],
+    "multipart_upload": {
+      "part_size_mb": 100,
+      "max_concurrent_parts": 10,
+      "abort_incomplete_multipart_upload_days": 7
+    },
+    "versioning": true,
+    "encryption": {
+      "enabled": true,
+      "algorithm": "aws:kms",
+      "kms_key_id": "arn:aws:kms:ap-south-1:222189578909:key/177a7f7a-b204-4da5-b1d6-8c623fc2879e"
+    },
+    "lifecycle": {
+      "enabled": true,
+      "transition_to_ia_days": 30,
+      "transition_to_glacier_days": 90,
+      "expiration_days": 2555
+    },
+    "access_control": "private",
+    "block_public_access": true
+  },
+  "lambda": {
+    "runtime": "nodejs20.x",
+    "timeout": 900,
+    "memory_size": 2048,
+    "reserved_concurrency": 0,
+    "environment": {
+      "LOG_LEVEL": "INFO",
+      "MAX_FILE_SIZE": "1073741824",
+      "POWERTOOLS_SERVICE_NAME": "video-upload-service",
+      "POWERTOOLS_METRICS_NAMESPACE": "VideoUpload"
+    },
+    "layers": [
+      "arn:aws:lambda:ap-south-1:770693421928:layer:AWSLambdaPowertoolsTypeScript:1"
+    ]
+  },
+  "api_gateway": {
+    "name": "video-upload-api",
+    "stage_name": "prod",
+    "throttling": {
+      "rate_limit": 1000,
+      "burst_limit": 2000
+    },
+    "caching": {
+      "enabled": true,
+      "ttl_seconds": 300,
+      "data_encrypted": true
+    },
+    "waf": {
+      "enabled": true,
+      "rules": ["AWSManagedRulesCommonRuleSet", "AWSManagedRulesKnownBadInputsRuleSet"]
+    }
+  },
+  "monitoring": {
+    "xray_enabled": true,
+    "cloudwatch_logs_retention": 30,
+    "alarms": {
+      "error_rate_threshold": 5,
+      "latency_threshold_ms": 5000,
+      "throttle_count_threshold": 100
+    },
+    "dashboards": {
+      "enabled": true,
+      "metrics": ["invocations", "errors", "duration", "throttles"]
+    },
+    "sns": {
+      "enabled": true,
+      "email_addresses": ["admin@example.com"]
+    }
+  },
+  "security": {
+    "kms": {
+      "enabled": true,
+      "key_rotation": true,
+      "deletion_window": 7
+    },
+    "secrets_manager": {
+      "enabled": true,
+      "rotation_days": 90
+    },
+    "guardduty": {
+      "enabled": true
+    },
+    "config": {
+      "enabled": true,
+      "recording": true
+    }
+  },
+  "performance": {
+    "cloudfront": {
+      "enabled": true,
+      "price_class": "PriceClass_100",
+      "compression": true,
+      "cache_policy": "Managed-CachingOptimized"
+    },
+    "elasticache": {
+      "enabled": false,
+      "node_type": "cache.t3.micro",
+      "num_cache_nodes": 1
+    }
+  }
+}
