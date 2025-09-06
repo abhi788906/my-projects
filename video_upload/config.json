@@ -71,7 +71,7 @@
     "encryption": {
       "enabled": true,
       "algorithm": "aws:kms",
-      "kms_key_id": "arn:aws:kms:ap-south-1:x:key/177a7f7a-b204-4da5-b1d6-8c623fc2879e"
+      "kms_key_id": "KMS_ARN"
     },
     "lifecycle": {
       "enabled": true,

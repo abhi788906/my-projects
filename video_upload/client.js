@@ -2,8 +2,8 @@ const fs = require('fs');
 const axios = require('axios');
 const mime = require('mime-types');
 
-const file = 'C:/Users/Mansimrat Bedi/Downloads/sample_1280x720_surfing_with_audio.mp4';
-const apiUrl = 'https://5bg47nekj1.execute-api.ap-south-1.amazonaws.com/Prod/upload';
+const file = 'Path_to_video';
+const apiUrl = 'API_URL/Prod/upload';
 const userId =  1 ;
 
 // Read the file content and detect the file type
